@@ -1,105 +1,70 @@
 package com.caiomarin.apps.todo.ui
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.text.Layout
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.caiomarin.apps.todo.R
 import com.caiomarin.apps.todo.database.TaskDatabase
-import com.caiomarin.apps.todo.databinding.ActivityMainBinding
 import com.caiomarin.apps.todo.model.Task
 import com.caiomarin.apps.todo.ui.AddTaskActivity.Companion.TASK_ID
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
-    private val adapter by lazy { TaskListAdapter() }
+    private lateinit var recycleView: RecyclerView
+    private lateinit var btnNewTask: FloatingActionButton
+    private lateinit var emptyState: View
+    private lateinit var adapter: TaskListAdapter
 
-    lateinit var database: TaskDatabase
-
-    companion object {
-        private const val CREATE_NEW_TASK = 10
-    }
+    private lateinit var model: TaskViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.activity_main)
 
-        setupDatabase()
+        model = ViewModelProvider(this ).get(TaskViewModel::class.java)
+        emptyState = findViewById(R.id.include_empty)
+
         setupRecycleView()
-
-        atualizarLista()
         insertListeners()
     }
 
-    private fun atualizarLista() {
-        doAsync {
-            val result = getTasks()
-            uiThread {
-                binding.includeEmpty.emptyState.visibility = if (result.isEmpty()) View.VISIBLE else View.GONE
-                adapter.submitList(result)
-            }
-        }
-    }
-
-    private fun getTasks(): List<Task> {
-        return database.DAO().getAllTasks()
-    }
-
-    private fun resetData() {
-        //Fazendo a Query em background e Setando o Adapter novamente
-        doAsync {
-            val result = getTasks()
-            uiThread {
-                adapter.submitList(result)
-            }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        resetData()
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-       if (resultCode == Activity.RESULT_OK){
-           resetData()
-       }
-    }
-
-
     private fun setupRecycleView() {
-        binding.rvTasks.adapter = adapter
+        recycleView = findViewById(R.id.rvTasks)
+
+        recycleView.layoutManager = LinearLayoutManager(this)
+        model.allTasks.observe(this, Observer {
+            adapter = TaskListAdapter(it, this) { abreVisualizadorTask(it) }
+            emptyState.visibility = if (it.isEmpty()) View.VISIBLE else View.GONE
+            recycleView.adapter = adapter
+
+            //val touchHelper = ItemTouchHelper(TouchHelper(adapter, this))
+            //touchHelper.attachToRecyclerView(recycleView)
+        })
+
+
     }
 
-    private fun setupDatabase() {
-        database = TaskDatabase.getInstance(this)
+    private fun abreVisualizadorTask(it: Task) {
+        val intent = Intent(this, AddTaskActivity::class.java)
+        intent.putExtra(TASK_ID, it.id)
+        startActivity(intent)
     }
 
     private fun insertListeners() {
-        binding.btnNewTask.setOnClickListener {
-            startActivityForResult(Intent(this, AddTaskActivity::class.java), CREATE_NEW_TASK)
+        btnNewTask = findViewById(R.id.btnNewTask)
+        btnNewTask.setOnClickListener {
+            startActivity(Intent(this, AddTaskActivity::class.java))
         }
-
-        adapter.listenerEdit = {
-            val intent = Intent(this, AddTaskActivity::class.java)
-            intent.putExtra(TASK_ID, it.id)
-            startActivityForResult(intent, CREATE_NEW_TASK)
-        }
-
-        adapter.listenerDelete = {
-            doAsync {
-                database.DAO().deleteTask(it)
-                uiThread {
-                    resetData()
-                }
-            }
-        }
-
     }
 
 }

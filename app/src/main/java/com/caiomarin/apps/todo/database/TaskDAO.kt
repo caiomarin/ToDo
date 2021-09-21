@@ -9,7 +9,7 @@ import com.caiomarin.apps.todo.model.Task
 interface TaskDAO {
 
     @Query("SELECT * FROM task")
-    fun getAllTasks(): List<Task>
+    fun getAllTasks(): LiveData<List<Task>>
 
     @Insert(onConflict = REPLACE)
     fun insertTask(task: Task)
@@ -17,6 +17,12 @@ interface TaskDAO {
     @Delete
     fun deleteTask(task: Task)
 
+    @Query("DELETE FROM task WHERE id = :id")
+    fun deleteTaskById(id: Int)
+
     @Query("SELECT * FROM task WHERE id = :id")
     fun findById(id: Int): Task
+
+    @Query("DELETE FROM task")
+    fun deleteAll()
 }
