@@ -2,7 +2,10 @@ package com.caiomarin.apps.todo.ui
 
 import android.app.Activity
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import com.caiomarin.apps.todo.database.TaskDatabase
 import com.caiomarin.apps.todo.databinding.ActivityAddTaskBinding
 import com.caiomarin.apps.todo.extensions.format
@@ -23,7 +26,7 @@ class AddTaskActivity: AppCompatActivity() {
         const val TASK_ID = "999"
     }
 
-    lateinit var database: TaskDatabase
+    private lateinit var model: TaskViewModel
 
     private lateinit var binding: ActivityAddTaskBinding
     private var taskI: Int = 0
@@ -33,13 +36,12 @@ class AddTaskActivity: AppCompatActivity() {
         binding = ActivityAddTaskBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupDatabase()
-
+        model = ViewModelProvider(this ).get(TaskViewModel::class.java)
 
         if (intent.hasExtra(TASK_ID)) {
             taskI = intent.getIntExtra(TASK_ID, 0)
             doAsync {
-                var result = database.DAO().findById(taskI)
+                var result = model.findById(taskI) as Task
                 uiThread {
                     binding.edtTitle.text = result.title
                     binding.edtDescription.text = result.description
@@ -50,11 +52,6 @@ class AddTaskActivity: AppCompatActivity() {
         }
 
         insertListeners()
-
-    }
-
-    private fun setupDatabase(){
-        database = TaskDatabase.getInstance(this)
     }
 
     private fun insertListeners() {
@@ -90,9 +87,8 @@ class AddTaskActivity: AppCompatActivity() {
                     binding.edtHour.text
                 )
             doAsync {
-                database.DAO().insertTask(task)
+                model.insert(task)
                 uiThread {
-                    setResult(Activity.RESULT_OK)
                     finish()
                 }
             }
